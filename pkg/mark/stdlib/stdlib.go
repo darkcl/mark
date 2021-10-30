@@ -83,6 +83,13 @@ func templates(api *confluence.API) (*template.Template, error) {
 					"]]><![CDATA[]]]]><![CDATA[>",
 				)
 			},
+			"convertAttachment": func(data string) string {
+				return strings.ReplaceAll(
+					data,
+					"/",
+					"_",
+				)
+			},
 		},
 	)
 
@@ -187,6 +194,11 @@ func templates(api *confluence.API) (*template.Template, error) {
 			`<ac:parameter ac:name="height">{{ or .Height "360px" }}</ac:parameter>{{printf "\n"}}`,
 			`<ac:parameter ac:name="url"><ri:url ri:value="{{ .URL }}" /></ac:parameter>{{printf "\n"}}`,
 			`</ac:structured-macro>{{printf "\n"}}`,
+		),
+
+		/* https://confluence.atlassian.com/doc/confluence-storage-format-790796544.html#ConfluenceStorageFormat-Images */
+		`ac:image`: text(
+			`<ac:image ac:align="center" ac:layout="center"><ri:attachment ri:filename="{{ .Attachment | convertAttachment }}"/></ac:image>`,
 		),
 
 		// TODO(seletskiy): more templates here
