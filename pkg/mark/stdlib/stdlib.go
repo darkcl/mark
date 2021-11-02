@@ -1,6 +1,10 @@
 package stdlib
 
 import (
+	"bytes"
+	"encoding/json"
+	"fmt"
+	"regexp"
 	"strings"
 	"text/template"
 
@@ -83,12 +87,21 @@ func templates(api *confluence.API) (*template.Template, error) {
 					"]]><![CDATA[]]]]><![CDATA[>",
 				)
 			},
+
+			"mermaidData": func(data string) string {
+				bf := bytes.NewBuffer([]byte{})
+				jsonEncoder := json.NewEncoder(bf)
+				jsonEncoder.SetEscapeHTML(false)
+				jsonEncoder.Encode(map[string]string{"diagramDefinition": data})
+				return bf.String()
+			},
+
 			"convertAttachment": func(data string) string {
-				return strings.ReplaceAll(
-					data,
-					"/",
-					"_",
-				)
+				re := regexp.MustCompile(`^(.*/)?(?:$|(.+?)(?:(\.[^.]*$)|$))`)
+				match1 := re.FindStringSubmatch(data)
+				fmt.Println(match1[2])
+
+				return fmt.Sprintf("%v.png", match1[2])
 			},
 		},
 	)
@@ -116,12 +129,12 @@ func templates(api *confluence.API) (*template.Template, error) {
 			`{{ if .Title }}<ac:parameter ac:name="title">{{ .Title }}</ac:parameter>{{printf "\n"}}{{ end }}`,
 			`<ac:rich-text-body>{{printf "\n"}}{{ end }}`,
 
-			`<ac:structured-macro ac:name="{{ if eq .Language "mermaid" }}cloudscript-confluence-mermaid{{ else }}code{{ end }}">{{printf "\n"}}`,
-			/**/ `{{ if eq .Language "mermaid" }}<ac:parameter ac:name="showSource">true</ac:parameter>{{printf "\n"}}{{ else }}`,
+			`<ac:structured-macro ac:name="{{ if eq .Language "mermaid" }}mermaid{{ else }}code{{ end }}" {{ if eq .Language "mermaid" }}data-layout="default"{{ end }} >{{printf "\n"}}`,
+			/**/ `{{ if eq .Language "mermaid" }}<ac:parameter ac:name="theme">neutral</ac:parameter>{{printf "\n"}}{{ else }}`,
 			/**/ `<ac:parameter ac:name="language">{{ .Language }}</ac:parameter>{{printf "\n"}}{{ end }}`,
 			/**/ `<ac:parameter ac:name="collapse">{{ .Collapse }}</ac:parameter>{{printf "\n"}}`,
 			/**/ `{{ if .Title }}<ac:parameter ac:name="title">{{ .Title }}</ac:parameter>{{printf "\n"}}{{ end }}`,
-			/**/ `<ac:plain-text-body><![CDATA[{{ .Text | cdata }}]]></ac:plain-text-body>{{printf "\n"}}`,
+			/**/ `<ac:plain-text-body>{{ if eq .Language "mermaid" }}<![CDATA[{{ .Text | mermaidData }}]]>{{ else }}<![CDATA[{{ .Text | cdata }}]]>{{ end }}</ac:plain-text-body>{{printf "\n"}}`,
 			`</ac:structured-macro>{{printf "\n"}}`,
 
 			`{{ if .Collapse }}</ac:rich-text-body>{{printf "\n"}}`,
